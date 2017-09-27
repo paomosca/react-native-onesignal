@@ -28,7 +28,7 @@ import com.onesignal.OneSignal;
 import org.json.JSONObject;
 import org.json.JSONException;
 
-
+import android.os.Handler;
 /**
  * Created by Avishay on 1/31/16.
  */
@@ -259,8 +259,14 @@ public class RNOneSignal extends ReactContextBaseJavaModule implements Lifecycle
 
     private void notifyNotificationOpened(Bundle bundle) {
         try {
-            JSONObject jsonObject = new JSONObject(bundle.getString("result"));
-            sendEvent("OneSignal-remoteNotificationOpened",  RNUtils.jsonToWritableMap(jsonObject));
+            Handler handler = new Handler();
+            final  JSONObject jsonObject = new JSONObject(bundle.getString("result"));
+            handler.postDelayed(new Runnable() {
+                  @Override
+                   public void run() {
+                sendEvent("OneSignal-remoteNotificationOpened",  RNUtils.jsonToWritableMap(jsonObject));
+              }
+            }, 1800);
         } catch(Throwable t) {
             t.printStackTrace();
         }

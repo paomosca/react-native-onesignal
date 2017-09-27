@@ -38,7 +38,7 @@ OSNotificationOpenedResult* coldStartOSNotificationOpenedResult;
 - (void)setBridge:(RCTBridge *)receivedBridge {
     _bridge = receivedBridge;
     curRCTBridge = receivedBridge;
-    
+
     if (coldStartOSNotificationOpenedResult) {
         [self handleRemoteNotificationOpened:[coldStartOSNotificationOpenedResult stringify]];
         coldStartOSNotificationOpenedResult = nil;
@@ -73,39 +73,43 @@ OSNotificationOpenedResult* coldStartOSNotificationOpenedResult;
 }
 
 - (void)onOSSubscriptionChanged:(OSSubscriptionStateChanges*)stateChanges {
-    
+
     // Example of detecting subscribing to OneSignal
     if (!stateChanges.from.subscribed && stateChanges.to.subscribed) {
         NSLog(@"Subscribed for OneSignal push notifications!");
     }
-    
+
     // prints out all properties
     NSLog(@"SubscriptionStateChanges:\n%@", stateChanges.to);
     [self.bridge.eventDispatcher sendAppEventWithName:@"OneSignal-idsAvailable" body:stateChanges.to];
 }
 
 - (void)handleRemoteNotificationReceived:(NSString *)notification {
-    
+
     NSError *jsonError;
     NSData *objectData = [notification dataUsingEncoding:NSUTF8StringEncoding];
     NSDictionary *json = [NSJSONSerialization JSONObjectWithData:objectData
                                                          options:NSJSONReadingMutableContainers
                                                            error:&jsonError];
 
-    
-    
+
+
     [curRCTBridge.eventDispatcher sendAppEventWithName:@"OneSignal-remoteNotificationReceived" body:json];
 }
 
 - (void)handleRemoteNotificationOpened:(NSString *)result {
-    
+
     NSError *jsonError;
     NSData *objectData = [result dataUsingEncoding:NSUTF8StringEncoding];
     NSDictionary *json = [NSJSONSerialization JSONObjectWithData:objectData
                                                          options:NSJSONReadingMutableContainers
                                                            error:&jsonError];
-    
-    [curRCTBridge.eventDispatcher sendAppEventWithName:@"OneSignal-remoteNotificationOpened" body:json];
+
+    double delayInSeconds = 1.8;
+    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
+    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+      [curRCTBridge.eventDispatcher sendAppEventWithName:@"OneSignal-remoteNotificationOpened" body:json];
+    });
 }
 
 - (void)handleRemoteNotificationsRegistered:(NSNotification *)notification {
@@ -118,18 +122,18 @@ RCT_EXPORT_METHOD(checkPermissions:(RCTResponseSenderBlock)callback)
         callback(@[@{@"alert": @NO, @"badge": @NO, @"sound": @NO}]);
         return;
     }
-    
+
     NSUInteger types = 0;
     if ([UIApplication instancesRespondToSelector:@selector(currentUserNotificationSettings)]) {
         types = [RCTSharedApplication() currentUserNotificationSettings].types;
     } else {
-        
+
 #if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
         types = [RCTSharedApplication() enabledRemoteNotificationTypes];
 #endif
-        
+
     }
-    
+
     callback(@[@{
                    @"alert": @((types & UIUserNotificationTypeAlert) > 0),
                    @"badge": @((types & UIUserNotificationTypeBadge) > 0),
@@ -180,11 +184,11 @@ RCT_EXPORT_METHOD(getPermissionSubscriptionState:(RCTResponseSenderBlock)callbac
             @"userId": [NSNull null],
         }]);
     }
-    
+
     OSPermissionSubscriptionState *state = [OneSignal getPermissionSubscriptionState];
     OSPermissionState *permissionState = state.permissionStatus;
     OSSubscriptionState *subscriptionState = state.subscriptionStatus;
-    
+
     // Received push notification prompt? (iOS only property)
     BOOL hasPrompted = permissionState.hasPrompted == 1;
 
